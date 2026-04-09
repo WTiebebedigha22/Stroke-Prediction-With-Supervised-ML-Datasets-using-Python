@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <title>Stroke Risk Assessment Report</title>
+
+    <style>
+        :root {
+            --primary-blue: #0f172a;
+            --accent-blue: #2563eb;
+            --bg-light: #f8fafc;
+            --text-main: #334155;
+            --text-muted: #64748b;
+            --danger-soft: #fef2f2;
+            --danger-main: #ef4444;
+            --success-soft: #f0fdf4;
+            --success-main: #10b981;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-light);
+            color: var(--text-main);
+        }
+
+        /* Navbar */
+        .navbar {
+            background-color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .navbar-brand {
+            color: var(--primary-blue) !important;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        
+        .brand-icon {
+            color: var(--accent-blue);
+            margin-right: 8px;
+        }
+
+        /* Card Styles */
+        .card-modern {
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+            background: #ffffff;
+            padding: 40px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary-blue);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            background: #f1f5f9;
+            border-radius: 30px;
+            height: 28px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: width 1s ease-in-out;
+        }
+
+        /* Stat Cards */
+        .stat-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            height: 100%;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-blue);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--accent-blue);
+            border: none;
+            padding: 12px 24px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline-secondary {
+            border-color: #cbd5e1;
+            color: var(--text-main);
+            padding: 12px 24px;
+            font-weight: 500;
+            border-radius: 8px;
+        }
+
+        /* Alert */
+        .alert-medical {
+            background-color: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        footer {
+            background: #ffffff;
+            color: var(--text-muted);
+            padding: 24px;
+            text-align: center;
+            font-size: 0.9rem;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 60px;
+        }
+    </style>
+</head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg py-3">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="/">
+            <i class="bi bi-heart-pulse-fill brand-icon fs-4"></i>
+            Stroke Risk Prediction
+        </a>
+    </div>
+</nav>
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card card-modern">
+
+                <div class="text-center mb-5">
+                    <h2 class="fw-bold" style="color: var(--primary-blue);">Assessment Report</h2>
+                    <p class="text-muted">Generated by Stroke Risk Prediction Model</p>
+                </div>
+
+                <div class="row g-5">
+                    <div class="col-md-6">
+                        <h6 class="section-title"><i class="bi bi-graph-up me-2"></i>Risk Visualization</h6>
+                        
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="fw-semibold">Probability Score</span>
+                                <span class="fw-bold {% if risk_level=='high' %}text-danger{% else %}text-success{% endif %}">{{ probability }}%</span>
+                            </div>
+                            <div class="progress-container">
+                                <div id="riskBar" 
+                                     class="progress-bar {% if risk_level=='high' %}bg-danger{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: 0%">
+                                </div>
+                            </div>
+                            <p class="text-center mt-3 fs-5 fw-medium">
+                                Status: <span class="{% if risk_level=='high' %}text-danger{% else %}text-success{% endif %}">{{ prediction_text }}</span>
+                            </p>
+                        </div>
+
+                        <div class="chart-container" style="position: relative; height:250px; width:100%">
+                            <canvas id="riskChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6 class="section-title"><i class="bi bi-person-lines-fill me-2"></i>Patient Summary</h6>
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-sm-6">
+                                <div class="stat-card">
+                                    <div class="stat-label">Age</div>
+                                    <div class="stat-value">{{ age }} yrs</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="stat-card">
+                                    <div class="stat-label">BMI</div>
+                                    <div class="stat-value">{{ bmi }}</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="stat-card">
+                                    <div class="stat-label">Average Glucose Level</div>
+                                    <div class="stat-value d-flex align-items-baseline">
+                                        {{ glucose }} <span class="ms-1 fs-6 text-muted fw-normal">mg/dL</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-medical mt-4 d-flex">
+                            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                            <div>
+                                <strong>Medical Disclaimer:</strong> This generated result is a ML-driven estimation based on input factors and is for informational purposes only. It does not substitute professional medical advice or clinical diagnosis.
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4">
+                            <a href="/download_report/{{ prediction_text }}/{{ probability }}" class="btn btn-primary">
+                                <i class="bi bi-file-earmark-pdf me-2"></i>Download PDF
+                            </a>
+                            <a href="/" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i>New Assessment
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+     © 2026 Stroke Risk Prediction | ML Healthcare Prediction System by Ella. All rights reserved.
+</footer>
+
+<script>
+    /* Safely inject Flask variable into JS */
+    const probabilityValue = Number("{{ probability | tojson }}") || 0;
+    
+    /* Determine colors based on probability for a dynamic look */
+    const isHighRisk = probabilityValue > 50; 
+    const chartColor = isHighRisk ? '#ef4444' : '#10b981'; // Tailwind red-500 or emerald-500
+    const emptyColor = '#f1f5f9';
+
+    /* Animated Progress Bar */
+    let bar = document.getElementById("riskBar");
+    let width = 0;
+
+    let interval = setInterval(() => {
+        if (width >= probabilityValue) {
+            clearInterval(interval);
+        } else {
+            width++;
+            bar.style.width = width + "%";
+            bar.innerHTML = width + "%";
+        }
+    }, 15);
+
+    /* Chart.js Implementation */
+    const ctx = document.getElementById("riskChart").getContext('2d');
+    new Chart(ctx, {
+        type: "doughnut",
+        data: {
+            labels: ["Risk Margin", "Safe Margin"],
+            datasets: [{
+                data: [probabilityValue, 100 - probabilityValue],
+                backgroundColor: [chartColor, emptyColor],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%', /* Makes the doughnut thinner and more modern */
+            plugins: {
+                legend: {
+                    position: "bottom",
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            family: "'Poppins', sans-serif",
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
