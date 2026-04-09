@@ -17,17 +17,15 @@ patients with a stroke
 <ol>
     <li>Supervised Machine Learning </li>
     <li>Flask </li>
-    <li>,HTML , CSS ,Bootstrap</li>
+    <li>,HTML , CSS ,Bootstrap & JS</li>
 </ol>
 
 ***
 
 <h3> Screenshots</h3>
 <div class="row">
-    <img src="Screenshot/img 1 ML.png" title="1">
+    <img src="Screenshot/Screenshot 185359.png" title="1">
     <br>
-    <img src="Screenshot/img 2 ML.png" title="2">
-    <img src="Screenshot/img 3 ML.png" title="3">
-    <img src="Screenshot/img 4 ML.png" title="4">
-    <img src="Screenshot/img 5 ML.png" title="5">
+    <img src="Screenshot/Screenshot 185448.png" title="2">
+    <img src="Screenshot/Screenshot 185459.png" title="3">
 </div>
