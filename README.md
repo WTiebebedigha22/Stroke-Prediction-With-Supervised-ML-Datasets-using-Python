@@ -1,31 +1,30 @@
 # Stroke-Prediction-Web-Application
-A python based web application which is used to identify
-patients with a stroke
 
-***
+A Python-based web application designed to identify risk factors and assess the probability of stroke in patients.
 
-<h3>Objective</h3>
-<ul>
-    <li>A python based web application which is used to identify patients with a stroke.</li>
-    <li> It predicts whether a patient is likely to get stroke based on the input parameters like gender, age, various diseases and smoking status.
-</li>
-</ul>
+-----
 
-*** 
+\<h3\>Objective\</h3\>
+\<ul\>
+\<li\>To provide a robust, Python-based web platform that assists in the early identification of stroke risk.\</li\>
+\<li\>It utilizes predictive modeling to determine the likelihood of a stroke based on patient-specific parameters including gender, age, hypertension, heart disease history, and smoking status.\</li\>
+\</ul\>
 
-<h3>Technologies Uses :</h3>
-<ol>
-    <li>Supervised Machine Learning </li>
-    <li>Flask </li>
-    <li>,HTML , CSS ,Bootstrap & JS</li>
-</ol>
+\*\*\* \<h3\>Technologies Used :\</h3\>
 
-***
+\<ol\>
+\<li\>\<strong\>Supervised Machine Learning:\</strong\> For high-accuracy predictive modeling and data analysis.\</li\>
+\<li\>\<strong\>Flask:\</strong\> To manage backend logic and serve the web application.\</li\>
+\<li\>\<strong\>HTML5, CSS3, Bootstrap 5 & JS:\</strong\> To create a modern, responsive, and clinical user interface.\</li\>
+\</ol\>
 
-<h3> Screenshots</h3>
-<div class="row">
-    <img src="Screenshot/Screenshot 185359.png" title="1">
-    <br>
-    <img src="Screenshot/Screenshot 185448.png" title="2">
-    <img src="Screenshot/Screenshot 185459.png" title="3">
-</div>
+-----
+
+\<h3\> Screenshots\</h3\>
+\<div class="row"\>
+\<img src="Screenshot/Screenshot 185359.png" title="Input Assessment Form" width="100%"\>
+<br><br>
+\<img src="Screenshot/Screenshot 185448.png" title="Risk Visualization Dashboard" width="100%"\>
+<br><br>
+\<img src="Screenshot/Screenshot 185459.png" title="Patient Clinical Summary" width="100%"\>
+\</div\>
