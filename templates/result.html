@@ -259,7 +259,7 @@
 
 <script>
     /* Safely inject Flask variable into JS */
-    const probabilityValue = Number("{{ probability | tojson }}") || 0;
+    const probabilityValue = {{ probability | default(0) }};
     
     /* Determine colors based on probability for a dynamic look */
     const isHighRisk = probabilityValue > 50; 
