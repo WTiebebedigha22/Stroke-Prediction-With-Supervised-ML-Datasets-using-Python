@@ -1,0 +1,209 @@
+ 1. Imports (Libraries Used)
+from flask import Flask, request, render_template
+import pickle
+import numpy as np
+What each does:
+Flask → Creates the web application
+request → Handles form data sent from HTML (user input)
+render_template → Loads HTML pages (index.html, result.html)
+pickle → Loads saved machine learning model and scaler
+numpy (np) → Used to create and manipulate numerical arrays for ML input
+ 
+2. Important Dependency Note (Comment Block)
+
+This part is just documentation:
+
+Flask app requires:
+flask
+numpy
+scikit-learn
+You do NOT install pickle (it’s built into Python)
+
+ 3. Loading the Model and Scaler
+model = pickle.load(open("strokesssmodel.pkl", "rb"))
+scaler = pickle.load(open("scaler.pkl", "rb"))
+What is happening here?
+✔ Model
+This is your trained machine learning model (likely Logistic Regression, Random Forest, etc.)
+It was previously saved using pickle
+✔ Scaler
+StandardScaler used during training
+It ensures input values are normalized the same way as training data
+Why scaler is critical
+
+If you don’t scale input data:
+
+The model gives incorrect predictions
+Because ML models are sensitive to feature magnitude
+
+4. Creating the Flask App
+app = Flask(__name__)
+What it does:
+Initializes the Flask application
+__name__ tells Flask where the app starts
+
+5. Home Route
+@app.route("/")
+def home():
+    return render_template("index.html")
+Explanation:
+This is the homepage route
+
+When user visits:
+
+http://localhost:5000/
+It loads:
+index.html (your form page)
+
+6. Prediction Route (Core Logic)
+@app.route("/result", methods=["POST"])
+What it means:
+This route handles form submission
+Only accepts POST requests (data sent from HTML form)
+
+ 6.1 Collecting Form Data
+gender = request.form["gender"]
+age = int(request.form["age"])
+hypertension = int(request.form["hypertension"])
+disease = int(request.form["disease"])
+...
+What is happening:
+Reads user input from HTML form fields
+Converts values to correct types:
+int() → numbers like age, hypertension
+float() → decimal values like glucose, BMI
+
+ 6.2 Feature Explanation
+
+Each variable represents a medical feature:
+
+Feature	Meaning
+age	Patient age
+hypertension	0/1 high blood pressure
+disease	heart disease (misnamed variable)
+glucose	blood sugar level
+bmi	body mass index
+
+ 7. Encoding Categorical Variables
+
+Machine learning models cannot understand text like:
+
+"Male"
+"Urban"
+"Private"
+
+So you convert them into numbers (0/1).
+
+Example: Gender encoding
+gender_Male = 1 if gender == "Male" else 0
+gender_Other = 1 if gender == "Other" else 0
+Meaning:
+Male → (1, 0)
+Female → (0, 0) → reference category (dropped during training)
+Married status
+married_Yes = 1 if married == "Yes" else 0
+Residence type
+Residence_type_Urban = 1 if residence == "Urban" else 0
+Work type encoding
+work_type_Never_worked = 1 if work == "Never_worked" else 0
+work_type_Private = 1 if work == "Private" else 0
+work_type_Self_employed = 1 if work == "Self-employed" else 0
+work_type_children = 1 if work == "children" else 0
+Why multiple variables?
+
+Because of one-hot encoding (drop_first=True) used during training.
+
+Smoking status encoding
+smoking_status_formerly_smoked = ...
+smoking_status_never_smoked = ...
+smoking_status_smokes = ...
+
+ 8. Building the Feature Array
+raw_features = np.array([[ ... ]])
+What this does:
+Combines all inputs into one row vector
+Format required by scikit-learn:
+[ [feature1, feature2, ..., featureN] ]
+
+ VERY IMPORTANT
+
+The order MUST match training data exactly:
+
+age, hypertension, heart_disease, glucose, bmi,
+gender_Male, gender_Other, ...
+
+If order is wrong → model prediction becomes invalid
+
+ 9. Scaling Input Data
+features = scaler.transform(raw_features)
+What happens here:
+Converts raw values → normalized values
+Ensures same distribution as training data
+
+Example:
+
+Age 80 → might become 1.2
+BMI 30 → might become 0.8
+
+ 10. Making Prediction
+prediction = model.predict(features)[0]
+Output:
+0 → No stroke risk
+1 → Stroke risk
+Probability prediction
+probability = model.predict_proba(features)[0][1] * 100
+Meaning:
+
+predict_proba returns:
+
+[prob_no_stroke, prob_stroke]
+[1] selects stroke probability
+Multiply by 100 → percentage
+
+Example:
+
+0.82 → 82% risk
+
+ 11. Risk Classification
+if prediction == 1:
+    risk_label = "High Risk"
+else:
+    risk_label = "Low Risk"
+Simple interpretation layer:
+Converts numeric output → human-readable result
+
+ 12. Returning Result Page
+return render_template(
+    "result.html",
+Sends data to HTML page:
+prediction_text → High/Low risk
+probability → risk percentage
+risk_level → styling (CSS color logic)
+age, bmi, glucose → displayed for user reference
+
+ 13. Fallback Route Handling
+return render_template("index.html")
+
+If request is not POST → reload homepage
+
+
+ 14. Running the App
+if __name__ == "__main__":
+    app.run(debug=True)
+What it means:
+Runs Flask server locally
+debug=True:
+auto-restarts on code changes
+shows detailed errors
+
+ Overall Flow Summary
+User opens website (/)
+Fills medical form
+Submits form (POST /result)
+Flask:
+reads inputs
+encodes categorical variables
+scales data
+sends to ML model
+Model predicts stroke risk
+Result displayed on result.html

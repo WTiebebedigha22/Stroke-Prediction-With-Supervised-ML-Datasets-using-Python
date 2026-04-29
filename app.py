@@ -14,19 +14,7 @@ import numpy as np
 # training. You MUST apply the same scaler at inference time,
 # otherwise predictions will be completely wrong.
 #
-# FIX 1 – filename was "strokesmodel.pkl" in Flask but the
-#          notebook saved "strokesssmodel.pkl". Make sure
-#          both match. Rename the saved file or change this
-#          line accordingly.
-#
-# FIX 2 – The scaler was NEVER saved in the notebook.
-#          Add these two lines to the end of your notebook
-#          and re-run it to generate scaler.pkl:
-#
-#              scaler_file = open('scaler.pkl', 'wb')
-#              pickle.dump(scaler, scaler_file)
-#              scaler_file.close()
-#
+
 model = pickle.load(open("strokesssmodel.pkl", "rb"))   # FIX 1: corrected filename
 scaler = pickle.load(open("scaler.pkl", "rb"))           # FIX 2: load the scaler
 
