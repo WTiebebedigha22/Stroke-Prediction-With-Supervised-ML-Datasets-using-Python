@@ -15,8 +15,8 @@ import numpy as np
 # otherwise predictions will be completely wrong.
 #
 
-model = pickle.load(open("strokesssmodel.pkl", "rb"))   # FIX 1: corrected filename
-scaler = pickle.load(open("scaler.pkl", "rb"))           # FIX 2: load the scaler
+model = pickle.load(open("strokesssmodel.pkl", "rb"))   
+scaler = pickle.load(open("scaler.pkl", "rb"))        
 
 app = Flask(__name__)
 
@@ -88,7 +88,6 @@ def predict():
             smoking_status_smokes
         ]])
 
-        # FIX 3 – Scale the features before prediction.
         # The model was trained on scaled data; skipping this step
         # produces nonsense predictions.
         features = scaler.transform(raw_features)
