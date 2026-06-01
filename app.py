@@ -1,24 +1,22 @@
 from flask import Flask, request, render_template
 import pickle
 import numpy as np
-
-# ============================================================
-# DEPENDENCIES
-# pip install flask numpy scikit-learn
-# NOTE: Do NOT pip install pickle — it is part of Python's
-#       standard library and cannot/should not be installed.
-# ============================================================
-
-# ── Load trained model AND scaler ───────────────────────────
-# The notebook scales features with StandardScaler before
-# training. You MUST apply the same scaler at inference time,
-# otherwise predictions will be completely wrong.
-#
-
-model = pickle.load(open("strokesssmodel.pkl", "rb"))   
-scaler = pickle.load(open("scaler.pkl", "rb"))        
+import pandas as pd
+import os
 
 app = Flask(__name__)
+
+# Base directory for relative cloud paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Safely load pickle assets using context-aware paths
+try:
+    model = pickle.load(open(os.path.join(BASE_DIR, "stroke_model.pkl"), "rb"))
+    scaler = pickle.load(open(os.path.join(BASE_DIR, "scaler.pkl"), "rb"))
+    feature_cols = pickle.load(open(os.path.join(BASE_DIR, "feature_cols.pkl"), "rb"))
+except Exception as e:
+    print(f"Error loading system binaries: {e}")
+    model, scaler, feature_cols = None, None, None
 
 
 @app.route("/")
@@ -28,86 +26,55 @@ def home():
 
 @app.route("/result", methods=["POST"])
 def predict():
+    if model is None or scaler is None:
+        return "Internal Server Error: Model binaries are uninitialized.", 500
+
     if request.method == "POST":
-
-        # ── Get form data ────────────────────────────────────
-        gender = request.form["gender"]
-        age = int(request.form["age"])
+        # ── Raw inputs ───────────────────────────────────────
+        gender       = request.form["gender"]
+        age          = int(request.form["age"])
         hypertension = int(request.form["hypertension"])
-        disease = int(request.form["disease"])
-        married = request.form["married"]
-        work = request.form["work"]
-        residence = request.form["residence"]
-        glucose = float(request.form["glucose"])
-        bmi = float(request.form["bmi"])
-        smoking = request.form["smoking"]
+        disease      = int(request.form["disease"])
+        married      = request.form["married"]
+        work         = request.form["work"]
+        residence    = request.form["residence"]
+        glucose      = float(request.form["glucose"])
+        bmi          = float(request.form["bmi"])
+        smoking      = request.form["smoking"]
 
-        # ── Encoding ─────────────────────────────────────────
-        # Must match get_dummies(drop_first=True) from notebook.
-        # drop_first=True removes the FIRST category alphabetically,
-        # so the reference (dropped) categories are:
-        #   gender       → Female
-        #   ever_married → No
-        #   work_type    → Govt_job
-        #   Residence    → Rural
-        #   smoking      → Unknown
+        # ── Build a one-row DataFrame matching training columns ──
+        row = pd.DataFrame([{
+            'age':               age,
+            'hypertension':      hypertension,
+            'heart_disease':     disease,
+            'avg_glucose_level': glucose,
+            'bmi':               bmi,
+            'gender':            gender,
+            'ever_married':      married,
+            'work_type':         work,
+            'Residence_type':    residence,
+            'smoking_status':    smoking,
+        }])
 
-        gender_Male = 1 if gender == "Male" else 0
-        gender_Other = 1 if gender == "Other" else 0
+        row = pd.get_dummies(row, columns=['gender','ever_married','work_type',
+                                            'Residence_type','smoking_status'],
+                             drop_first=True)
 
-        married_Yes = 1 if married == "Yes" else 0
+        # Align to training feature columns (fills any missing dummies with 0)
+        row = row.reindex(columns=feature_cols, fill_value=0)
 
-        Residence_type_Urban = 1 if residence == "Urban" else 0
-
-        work_type_Never_worked = 1 if work == "Never_worked" else 0
-        work_type_Private = 1 if work == "Private" else 0
-        work_type_Self_employed = 1 if work == "Self-employed" else 0
-        work_type_children = 1 if work == "children" else 0
-
-        smoking_status_formerly_smoked = 1 if smoking == "formerly smoked" else 0
-        smoking_status_never_smoked = 1 if smoking == "never smoked" else 0
-        smoking_status_smokes = 1 if smoking == "smokes" else 0
-
-        # ── Build feature array ───────────────────────────────
-        # Column order must exactly match x.columns from notebook:
-        # age, hypertension, heart_disease, avg_glucose_level, bmi,
-        # gender_Male, gender_Other, ever_married_Yes,
-        # work_type_Never_worked, work_type_Private,
-        # work_type_Self-employed, work_type_children,
-        # Residence_type_Urban,
-        # smoking_status_formerly smoked, smoking_status_never smoked,
-        # smoking_status_smokes
-        raw_features = np.array([[
-            age, hypertension, disease, glucose, bmi,
-            gender_Male, gender_Other, married_Yes,
-            work_type_Never_worked, work_type_Private,
-            work_type_Self_employed, work_type_children,
-            Residence_type_Urban,
-            smoking_status_formerly_smoked,
-            smoking_status_never_smoked,
-            smoking_status_smokes
-        ]])
-
-        # The model was trained on scaled data; skipping this step
-        # produces nonsense predictions.
-        features = scaler.transform(raw_features)
-
-        # ── Predict ──────────────────────────────────────────
+        # ── Scale & Predict ──────────────────────────────────
+        features   = scaler.transform(row)
         prediction = model.predict(features)[0]
-        probability = model.predict_proba(features)[0][1] * 100
+        probability = round(model.predict_proba(features)[0][1] * 100, 2)
 
-        # ── Result ───────────────────────────────────────────
-        if prediction == 1:
-            risk_label = "High Risk"
-            risk_level = "high"
-        else:
-            risk_label = "Low Risk"
-            risk_level = "low"
+        risk_label = "High Risk" if prediction == 1 else "Low Risk"
+        risk_level = "high"      if prediction == 1 else "low"
 
         return render_template(
             "result.html",
             prediction_text=risk_label,
-            probability=round(probability, 2),
+            probability=probability,
             risk_level=risk_level,
             age=age,
             bmi=bmi,
