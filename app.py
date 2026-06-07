@@ -1,8 +1,44 @@
 from flask import Flask, request, render_template
-import pickle
-import numpy as np
-import pandas as pd
 import os
+import pickle
+import pandas as pd
+import numpy as np
+
+# ─── MONKEY-PATCH FOR NUMPY CROSS-VERSION COMPATIBILITY ───
+# This intercepts internal pickle operations to fix NumPy 2.x to 1.x conversion bugs
+import numpy.random._pickle as nrp
+from numpy.random import PCG64, MT19937, Philox, SFC64, PCG64DXSM
+
+orig_bit_generator_ctor = nrp.__bit_generator_ctor
+
+def patched_bit_generator_ctor(bit_generator_name='MT19937'):
+    name_str = str(bit_generator_name).strip()
+    
+    # Detect exact or partial naming tokens inside the serialized byte stream
+    if 'PCG64DXSM' in name_str:
+        return PCG64DXSM()
+    elif 'PCG64' in name_str:
+        return PCG64()
+    elif 'MT19937' in name_str:
+        return MT19937()
+    elif 'Philox' in name_str:
+        return Philox()
+    elif 'SFC64' in name_str:
+        return SFC64()
+    
+    # If the token string is completely empty or unrecognized due to version shifts,
+    # default to PCG64 (the modern baseline generator used by Scikit-Learn models)
+    if not name_str:
+        return PCG64()
+        
+    try:
+        return orig_bit_generator_ctor(bit_generator_name)
+    except Exception:
+        return PCG64()
+
+# Inject our custom safety net directly into the active NumPy library instance
+nrp.__bit_generator_ctor = patched_bit_generator_ctor
+# ──────────────────────────────────────────────────────────
 
 app = Flask(__name__)
 
@@ -29,22 +65,13 @@ def home():
 
 @app.route("/result", methods=["POST"])
 def predict():
-    # Forcefully capture and display errors on-screen if the pickle files fail to load
     if model is None or scaler is None or feature_cols is None:
         return f"""
         <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; border: 1px solid #ecc; background: #fff5f5; border-radius: 8px;">
             <h1 style="color: #c9302c; margin-top: 0;">Internal Server Error: Model Binaries Uninitialized</h1>
             <p style="color: #555; font-size: 16px;">The serverless function booted up successfully, but it failed to read your <code>.pkl</code> pipelines from the project root.</p>
-            
             <h3 style="color: #333; margin-bottom: 5px;">Diagnostic System Log:</h3>
             <pre style="background: #222; color: #f8f8f2; padding: 15px; border-radius: 4px; overflow-x: auto; font-family: Consolas, Monaco, monospace; font-size: 14px; line-height: 1.5;">{init_error_log}</pre>
-            
-            <h3 style="color: #333; margin-top: 20px;">Quick Troubleshooting Checklist:</h3>
-            <ul style="color: #555; line-height: 1.6;">
-                <li>Ensure <strong>stroke_model.pkl</strong>, <strong>scaler.pkl</strong>, and <strong>feature_cols.pkl</strong> are committed to the root of your GitHub repository.</li>
-                <li>Verify filename casing matches perfectly (Linux servers treat <code>model.pkl</code> and <code>Model.pkl</code> as entirely different files).</li>
-                <li>Check your GitHub repository to ensure these files aren't text pointer wrappers caused by Git LFS.</li>
-            </ul>
         </div>
         """, 500
 
@@ -80,7 +107,6 @@ def predict():
                                                 'Residence_type','smoking_status'],
                                  drop_first=True)
 
-            # Align to training feature columns (fills any missing dummies with 0)
             row = row.reindex(columns=feature_cols, fill_value=0)
 
             # ── Scale & Predict ──────────────────────────────────
@@ -99,6 +125,13 @@ def predict():
                 age=age,
                 bmi=bmi,
                 glucose=glucose,
+                gender=gender,
+                hypertension=hypertension,
+                disease=disease,
+                married=married,
+                work=work,
+                residence=residence,
+                smoking=smoking
             )
             
         except KeyError as ke:
