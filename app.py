@@ -1,44 +1,8 @@
 from flask import Flask, request, render_template
-import os
 import pickle
-import pandas as pd
 import numpy as np
-
-# ─── MONKEY-PATCH FOR NUMPY CROSS-VERSION COMPATIBILITY ───
-# This intercepts internal pickle operations to fix NumPy 2.x to 1.x conversion bugs
-import numpy.random._pickle as nrp
-from numpy.random import PCG64, MT19937, Philox, SFC64, PCG64DXSM
-
-orig_bit_generator_ctor = nrp.__bit_generator_ctor
-
-def patched_bit_generator_ctor(bit_generator_name='MT19937'):
-    name_str = str(bit_generator_name).strip()
-    
-    # Detect exact or partial naming tokens inside the serialized byte stream
-    if 'PCG64DXSM' in name_str:
-        return PCG64DXSM()
-    elif 'PCG64' in name_str:
-        return PCG64()
-    elif 'MT19937' in name_str:
-        return MT19937()
-    elif 'Philox' in name_str:
-        return Philox()
-    elif 'SFC64' in name_str:
-        return SFC64()
-    
-    # If the token string is completely empty or unrecognized due to version shifts,
-    # default to PCG64 (the modern baseline generator used by Scikit-Learn models)
-    if not name_str:
-        return PCG64()
-        
-    try:
-        return orig_bit_generator_ctor(bit_generator_name)
-    except Exception:
-        return PCG64()
-
-# Inject our custom safety net directly into the active NumPy library instance
-nrp.__bit_generator_ctor = patched_bit_generator_ctor
-# ──────────────────────────────────────────────────────────
+import pandas as pd
+import os
 
 app = Flask(__name__)
 
@@ -125,13 +89,6 @@ def predict():
                 age=age,
                 bmi=bmi,
                 glucose=glucose,
-                gender=gender,
-                hypertension=hypertension,
-                disease=disease,
-                married=married,
-                work=work,
-                residence=residence,
-                smoking=smoking
             )
             
         except KeyError as ke:
