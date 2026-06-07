@@ -125,8 +125,6 @@ def predict():
                 age=age,
                 bmi=bmi,
                 glucose=glucose,
-<<<<<<< HEAD
-=======
                 gender=gender,
                 hypertension=hypertension,
                 disease=disease,
@@ -134,7 +132,6 @@ def predict():
                 work=work,
                 residence=residence,
                 smoking=smoking
->>>>>>> 3d432acc50649c50b9e8e9483743140763b88fbc
             )
             
         except KeyError as ke:
