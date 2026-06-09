@@ -1,27 +1,36 @@
-# ── RUNTIME VENDOR OVERRIDE ─────────────────────────────────────────────────
-# The serverless runtime pre-loads its own frozen joblib/sklearn into
-# sys.modules from /var/task/_vendor/ before user code runs. sys.path
-# manipulation alone cannot fix this — once a module is cached in sys.modules
-# Python never searches sys.path for it again.
-#
-# Fix: (1) push site-packages to front of sys.path, then
-#      (2) purge every joblib + sklearn key from sys.modules so the
-#          next import resolves fresh from requirements.txt installs.
-import sys, site
+# ── SKLEARN MODULE ALIAS PATCH ───────────────────────────────────────────────
+# The runtime vendors an old joblib that calls pickle with pre-1.1 sklearn
+# internal module names. These bare/old paths no longer exist, causing
+# ModuleNotFoundError on load. We register sys.modules aliases that redirect
+# every old path to its current location before any .pkl file is touched.
+# This runs before imports so it intercepts the unpickler's __import__ calls.
+import sys
 
-for _p in reversed(site.getsitepackages()):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+def _register_sklearn_aliases():
+    _aliases = [
+        # Old bare C-extension name  →  current sklearn package
+        ("_loss",                                         "sklearn._loss"),
+        ("_loss.loss",                                    "sklearn._loss.loss"),
+        # Pre-1.0 gradient boosting losses module
+        ("sklearn.ensemble._gb_losses",                   "sklearn._loss.loss"),
+        # Pre-1.1 hist gradient boosting loss module
+        ("sklearn.ensemble._hist_gradient_boosting.loss", "sklearn._loss.loss"),
+    ]
+    for old_path, new_path in _aliases:
+        if old_path not in sys.modules:
+            try:
+                parts = new_path.split(".")
+                mod = __import__(new_path, fromlist=[parts[-1]])
+                sys.modules[old_path] = mod
+            except ImportError:
+                pass  # new path missing too — not this sklearn version
 
-_purge_prefixes = ("joblib", "sklearn")
-for _key in [k for k in sys.modules if k == "joblib" or k == "sklearn"
-             or any(k.startswith(p + ".") for p in _purge_prefixes)]:
-    del sys.modules[_key]
+_register_sklearn_aliases()
 # ─────────────────────────────────────────────────────────────────────────────
 
 from flask import Flask, request, render_template
 import os
-import joblib
+import pickle
 import pandas as pd
 
 app = Flask(__name__)
@@ -31,6 +40,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 init_error_log = "No error recorded yet."
 
 try:
+    # Use the runtime's own vendored joblib — aliases above make it work
+    import joblib
     model        = joblib.load(os.path.join(BASE_DIR, "stroke_model.pkl"))
     scaler       = joblib.load(os.path.join(BASE_DIR, "scaler.pkl"))
     feature_cols = joblib.load(os.path.join(BASE_DIR, "feature_cols.pkl"))
