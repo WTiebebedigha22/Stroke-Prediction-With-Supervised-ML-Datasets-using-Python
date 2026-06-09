@@ -1,3 +1,14 @@
+# ── PATH OVERRIDE — must be the very first executable lines ──────────────────
+# The serverless runtime vendors its own frozen joblib/sklearn under
+# /var/task/_vendor/, which predates sklearn 1.1 and lacks the `_loss` module.
+# Inserting site-packages at position 0 forces Python to resolve imports from
+# requirements.txt installs before the runtime's _vendor copies are ever found.
+import sys, site
+for _p in reversed(site.getsitepackages()):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+# ─────────────────────────────────────────────────────────────────────────────
+
 from flask import Flask, request, render_template
 import os
 import joblib
