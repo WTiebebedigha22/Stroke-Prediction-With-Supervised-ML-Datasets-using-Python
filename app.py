@@ -1,7 +1,14 @@
 from flask import Flask, request, render_template
+<<<<<<< HEAD
 import os
 import joblib
 import pandas as pd
+=======
+import pickle
+import numpy as np
+import pandas as pd
+import os
+>>>>>>> 6fced21a85e7fd73da239334b19d2dbb8b5c2221
 
 app = Flask(__name__)
 
@@ -88,6 +95,7 @@ def predict():
                 age=age,
                 bmi=bmi,
                 glucose=glucose,
+<<<<<<< HEAD
                 gender=gender,
                 hypertension=hypertension,
                 disease=disease,
@@ -95,6 +103,8 @@ def predict():
                 work=work,
                 residence=residence,
                 smoking=smoking,
+=======
+>>>>>>> 6fced21a85e7fd73da239334b19d2dbb8b5c2221
             )
 
         except KeyError as ke:
