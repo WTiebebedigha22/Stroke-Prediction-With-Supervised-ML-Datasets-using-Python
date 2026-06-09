@@ -1,12 +1,22 @@
-# ── PATH OVERRIDE — must be the very first executable lines ──────────────────
-# The serverless runtime vendors its own frozen joblib/sklearn under
-# /var/task/_vendor/, which predates sklearn 1.1 and lacks the `_loss` module.
-# Inserting site-packages at position 0 forces Python to resolve imports from
-# requirements.txt installs before the runtime's _vendor copies are ever found.
+# ── RUNTIME VENDOR OVERRIDE ─────────────────────────────────────────────────
+# The serverless runtime pre-loads its own frozen joblib/sklearn into
+# sys.modules from /var/task/_vendor/ before user code runs. sys.path
+# manipulation alone cannot fix this — once a module is cached in sys.modules
+# Python never searches sys.path for it again.
+#
+# Fix: (1) push site-packages to front of sys.path, then
+#      (2) purge every joblib + sklearn key from sys.modules so the
+#          next import resolves fresh from requirements.txt installs.
 import sys, site
+
 for _p in reversed(site.getsitepackages()):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+_purge_prefixes = ("joblib", "sklearn")
+for _key in [k for k in sys.modules if k == "joblib" or k == "sklearn"
+             or any(k.startswith(p + ".") for p in _purge_prefixes)]:
+    del sys.modules[_key]
 # ─────────────────────────────────────────────────────────────────────────────
 
 from flask import Flask, request, render_template
@@ -47,73 +57,63 @@ def predict():
         </div>
         """, 500
 
-    if request.method == "POST":
-        try:
-            # ── Raw inputs ───────────────────────────────────────────────────
-            gender       = request.form["gender"]
-            age          = int(request.form["age"])
-            hypertension = int(request.form["hypertension"])
-            disease      = int(request.form["disease"])
-            married      = request.form["married"]
-            work         = request.form["work"]
-            residence    = request.form["residence"]
-            glucose      = float(request.form["glucose"])
-            bmi          = float(request.form["bmi"])
-            smoking      = request.form["smoking"]
+    try:
+        # ── Raw inputs ───────────────────────────────────────────────────────
+        gender       = request.form["gender"]
+        age          = int(request.form["age"])
+        hypertension = int(request.form["hypertension"])
+        disease      = int(request.form["disease"])
+        married      = request.form["married"]
+        work         = request.form["work"]
+        residence    = request.form["residence"]
+        glucose      = float(request.form["glucose"])
+        bmi          = float(request.form["bmi"])
+        smoking      = request.form["smoking"]
 
-            # ── Build one-row DataFrame matching training columns ─────────────
-            row = pd.DataFrame([{
-                "age":               age,
-                "hypertension":      hypertension,
-                "heart_disease":     disease,
-                "avg_glucose_level": glucose,
-                "bmi":               bmi,
-                "gender":            gender,
-                "ever_married":      married,
-                "work_type":         work,
-                "Residence_type":    residence,
-                "smoking_status":    smoking,
-            }])
+        # ── Build one-row DataFrame matching training columns ─────────────────
+        row = pd.DataFrame([{
+            "age":               age,
+            "hypertension":      hypertension,
+            "heart_disease":     disease,
+            "avg_glucose_level": glucose,
+            "bmi":               bmi,
+            "gender":            gender,
+            "ever_married":      married,
+            "work_type":         work,
+            "Residence_type":    residence,
+            "smoking_status":    smoking,
+        }])
 
-            row = pd.get_dummies(
-                row,
-                columns=["gender", "ever_married", "work_type",
-                         "Residence_type", "smoking_status"],
-                drop_first=True,
-            )
-            row = row.reindex(columns=feature_cols, fill_value=0)
+        row = pd.get_dummies(
+            row,
+            columns=["gender", "ever_married", "work_type",
+                     "Residence_type", "smoking_status"],
+            drop_first=True,
+        )
+        row = row.reindex(columns=feature_cols, fill_value=0)
 
-            # ── Scale & Predict ──────────────────────────────────────────────
-            features    = scaler.transform(row)
-            prediction  = model.predict(features)[0]
-            probability = round(model.predict_proba(features)[0][1] * 100, 2)
+        # ── Scale & Predict ──────────────────────────────────────────────────
+        features    = scaler.transform(row)
+        prediction  = model.predict(features)[0]
+        probability = round(model.predict_proba(features)[0][1] * 100, 2)
 
-            risk_label = "High Risk" if prediction == 1 else "Low Risk"
-            risk_level = "high"      if prediction == 1 else "low"
+        risk_label = "High Risk" if prediction == 1 else "Low Risk"
+        risk_level = "high"      if prediction == 1 else "low"
 
-            return render_template(
-                "result.html",
-                prediction_text=risk_label,
-                probability=probability,
-                risk_level=risk_level,
-                age=age,
-                bmi=bmi,
-                glucose=glucose,
-                gender=gender,
-                hypertension=hypertension,
-                disease=disease,
-                married=married,
-                work=work,
-                residence=residence,
-                smoking=smoking,
-            )
+        return render_template(
+            "result.html",
+            prediction_text=risk_label,
+            probability=probability,
+            risk_level=risk_level,
+            age=age, bmi=bmi, glucose=glucose, gender=gender,
+            hypertension=hypertension, disease=disease,
+            married=married, work=work, residence=residence, smoking=smoking,
+        )
 
-        except KeyError as ke:
-            return f"Frontend Form Error: Missing expected input field: {str(ke)}", 400
-        except Exception as e:
-            return f"Runtime Inference Error: {str(e)}", 500
-
-    return render_template("index.html")
+    except KeyError as ke:
+        return f"Frontend Form Error: Missing expected input field: {str(ke)}", 400
+    except Exception as e:
+        return f"Runtime Inference Error: {str(e)}", 500
 
 
 if __name__ == "__main__":
