@@ -1,92 +1,103 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, render_template
 import os
 import joblib
-import numpy as np
+import pandas as pd
 
 app = Flask(__name__)
-CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ── Load artifacts ─────────────────────────────────────
 try:
-    model        = joblib.load(os.path.join(BASE_DIR, "stroke_model.pkl"))
-    scaler       = joblib.load(os.path.join(BASE_DIR, "scaler.pkl"))
+    model = joblib.load(os.path.join(BASE_DIR, "stroke_model.pkl"))
+    scaler = joblib.load(os.path.join(BASE_DIR, "scaler.pkl"))
     feature_cols = joblib.load(os.path.join(BASE_DIR, "feature_cols.pkl"))
 except Exception as e:
     model = scaler = feature_cols = None
     init_error = str(e)
 
 
-# ── Health check ───────────────────────────────────────
-@app.route("/", methods=["GET"])
+@app.route("/")
 def home():
-    return jsonify({
-        "status": "running",
-        "model_loaded": model is not None
-    })
+    return render_template("index.html")
 
 
-# ── Prediction endpoint ────────────────────────────────
-@app.route("/predict", methods=["POST"])
+@app.route("/result", methods=["POST"])
 def predict():
-    if model is None or scaler is None or feature_cols is None:
-        return jsonify({
-            "error": "Model not initialized",
-        }), 500
+
+    if model is None:
+        return f"Model loading failed: {init_error}", 500
 
     try:
-        data = request.get_json()
+        gender = request.form["gender"]
+        age = int(request.form["age"])
+        hypertension = int(request.form["hypertension"])
+        disease = int(request.form["disease"])
+        married = request.form["married"]
+        work = request.form["work"]
+        residence = request.form["residence"]
+        glucose = float(request.form["glucose"])
+        bmi = float(request.form["bmi"])
+        smoking = request.form["smoking"]
 
-        # ── Required raw inputs ─────────────────────────
-        age          = float(data["age"])
-        hypertension = int(data["hypertension"])
-        heart_disease = int(data["disease"])
-        glucose      = float(data["glucose"])
-        bmi          = float(data["bmi"])
-
-        gender       = data["gender"]
-        married      = data["married"]
-        work         = data["work"]
-        residence    = data["residence"]
-        smoking      = data["smoking"]
-
-        # ── Manual feature vector (NO PANDAS) ───────────
-        raw = {
+        row = pd.DataFrame([{
             "age": age,
             "hypertension": hypertension,
-            "heart_disease": heart_disease,
+            "heart_disease": disease,
             "avg_glucose_level": glucose,
             "bmi": bmi,
-            f"gender_{gender}": 1,
-            f"ever_married_{married}": 1,
-            f"work_type_{work}": 1,
-            f"Residence_type_{residence}": 1,
-            f"smoking_status_{smoking}": 1,
-        }
+            "gender": gender,
+            "ever_married": married,
+            "work_type": work,
+            "Residence_type": residence,
+            "smoking_status": smoking,
+        }])
 
-        # ── Convert to model input vector ───────────────
-        input_vector = [raw.get(col, 0) for col in feature_cols]
-        input_array = np.array(input_vector).reshape(1, -1)
+        row = pd.get_dummies(
+            row,
+            columns=[
+                "gender",
+                "ever_married",
+                "work_type",
+                "Residence_type",
+                "smoking_status"
+            ],
+            drop_first=True
+        )
 
-        # ── Scale + Predict ─────────────────────────────
-        scaled = scaler.transform(input_array)
+        row = row.reindex(columns=feature_cols, fill_value=0)
 
-        prediction = int(model.predict(scaled)[0])
-        probability = float(model.predict_proba(scaled)[0][1])
+        features = scaler.transform(row)
 
-        return jsonify({
-            "prediction": prediction,
-            "risk": "High Risk" if prediction == 1 else "Low Risk",
-            "probability": round(probability * 100, 2)
-        })
+        prediction = model.predict(features)[0]
+        probability = round(
+            model.predict_proba(features)[0][1] * 100,
+            2
+        )
+
+        risk_label = "High Risk" if prediction == 1 else "Low Risk"
+        risk_level = "high" if prediction == 1 else "low"
+
+        return render_template(
+            "result.html",
+            prediction_text=risk_label,
+            probability=probability,
+            risk_level=risk_level,
+            age=age,
+            bmi=bmi,
+            glucose=glucose,
+            gender=gender,
+            hypertension=hypertension,
+            disease=disease,
+            married=married,
+            work=work,
+            residence=residence,
+            smoking=smoking
+        )
 
     except Exception as e:
-        return jsonify({
-            "error": str(e)
-        }), 400
+        return str(e), 500
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
