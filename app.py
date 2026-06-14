@@ -1,4 +1,8 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, send_file
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
+import io
 import os
 import joblib
 import pandas as pd
@@ -97,6 +101,37 @@ def predict():
     except Exception as e:
         return str(e), 500
 
+@app.route("/download_report/<prediction>/<probability>")
+def download_report(prediction, probability):
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+    styles = getSampleStyleSheet()
+    content = []
+
+    content.append(Paragraph("Stroke Risk Assessment Report", styles["Title"]))
+    content.append(Spacer(1, 12))
+
+    content.append(Paragraph(f"<b>Prediction:</b> {prediction}", styles["Normal"]))
+    content.append(Paragraph(f"<b>Probability:</b> {probability}%", styles["Normal"]))
+
+    content.append(Spacer(1, 12))
+
+    content.append(Paragraph(
+        "This report is generated using a machine learning model and is for informational purposes only.",
+        styles["Normal"]
+    ))
+
+    doc.build(content)
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="stroke_risk_report.pdf",
+        mimetype="application/pdf"
+    )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
